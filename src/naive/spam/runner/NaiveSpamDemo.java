@@ -1,34 +1,36 @@
 package naive.spam.runner;
 
-import java.io.IOException;
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.Set;
 import naive.spam.document.Document;
 import naive.spam.feature.SimpleFeatureCalculator;
-import naive.spam.input.TextFileReader;
+import naive.spam.input.InternalResReader;
+import naive.spam.test.TestClassifier;
 import naive.spam.text.RegexpDocSplitter;
 import naive.spam.train.Coach;
 
 public class NaiveSpamDemo {
 
     public static void main(String[] args) {
-        //final float smoothD = Float.valueOf(args[1]);
-        final float smoothD = 0.7f;
+        float smoothD = 0.0f;
+        if (args.length == 0) {
+            System.out.println("default smoothing: 0.7f");
+            smoothD = 0.7f;
+        } else {
+            smoothD = Float.valueOf(args[0]);
+        }
+        
+        
         String fdata1 = null;
         String fdata2 = null;
         String fdata3 = null;
         String fdata4 = null;
-        TextFileReader tfr = new TextFileReader();
-
-        try {
-            fdata1 = tfr.readFile("src/data/spam_training");
-            fdata2 = tfr.readFile("src/data/ham_training");
-            fdata3 = tfr.readFile("src/data/vocab_100000.wl");
-            fdata4 = tfr.readFile("src/data/ham_spam_testing");
-        } catch (IOException e) {
-            System.out.println(e);
-        }
+        InternalResReader irr = new InternalResReader();
+        //TextFileReader tfr = new TextFileReader();
+        fdata1 = irr.getResource("/data/spam_training");
+        fdata2 = irr.getResource("/data/ham_training");
+        fdata3 = irr.getResource("/data/vocab_100000.wl");
+        fdata4 = irr.getResource("/data/ham_spam_testing");
 
         // calculating features
         SimpleFeatureCalculator sfc = new SimpleFeatureCalculator(fdata3);
@@ -40,25 +42,20 @@ public class NaiveSpamDemo {
         HashMap<String, HashMap> trainWordsProbs = new HashMap<>();
 
         // training
-        Coach coach = new Coach(distr);
-        trainWordsProbs = coach.trainSpamHam(spamFeats, hamFeats, smoothD);
-        
+        Coach c = new Coach(distr);
+        trainWordsProbs = c.trainSpamHam(spamFeats, hamFeats, smoothD);
+
         RegexpDocSplitter rds = new RegexpDocSplitter(fdata4);
         Set<Document> testDocsObjs = rds.getDocObjects();
-        System.out.println(classes);
-//        for (Object o: trainWordsProbs.entrySet()) {
-//            System.out.println(o);
+
+//        for (Document d : testDocsObjs) {
+//            System.out.println(d.getEmailType() + "\n" + d.getBodyWords());
 //        }
-        
-        
-//        for (Document d: testDocsObjs) {
-//            for (String w: d.getBodyWords()){
-//                // getting the probability of a test word
-//                System.out.println(w + " prob: " + trainWordsProbs.get(w));
-//            }
-//        }
-        
-        
+        // testing
+        TestClassifier tc = new TestClassifier(testDocsObjs,
+                c.getDefaultSpamProb(), c.getDefaultHamProb(), fdata3);
+        tc.classify(trainWordsProbs);
+        tc.checkPrecision();
     }
 
 }
