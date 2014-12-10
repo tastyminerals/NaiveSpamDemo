@@ -1,36 +1,51 @@
 package naive.spam.runner;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Set;
 import naive.spam.document.Document;
 import naive.spam.feature.SimpleFeatureCalculator;
 import naive.spam.input.InternalResReader;
+import naive.spam.input.TextFileReader;
 import naive.spam.test.TestClassifier;
 import naive.spam.text.RegexpDocSplitter;
 import naive.spam.train.Coach;
 
 public class NaiveSpamDemo {
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         float smoothD = 0.0f;
-        if (args.length == 0) {
-            System.out.println("default smoothing: 0.7f");
-            smoothD = 0.7f;
-        } else {
-            smoothD = Float.valueOf(args[0]);
-        }
-        
-        
+        TextFileReader tr = new TextFileReader();
+        InternalResReader irr = new InternalResReader();
         String fdata1 = null;
         String fdata2 = null;
         String fdata3 = null;
         String fdata4 = null;
-        InternalResReader irr = new InternalResReader();
+        
+        if (args.length == 0) {
+            smoothD = 0.7f;
+            fdata4 = irr.getResource("/data/ham_spam_testing");
+            System.out.println("Using default smoothing: 0.7f");
+        } else if (args[0].contains("help")) {
+            System.out.println("\"NaiveSpam classifier\"\n"
+                    + "Training and test sets are already included in the jar "
+                    + "file, but you can supply yours as arguments.\n"
+                    + "USAGE 1: java -jar NaiveSpamDemo.jar 0.5f testfile -- "
+                    + "first argument is smoothing parameter, second is the test file.\n"
+                    + "USAGE 2: java -jar NaiveSpamDemo.jar -- "
+                    + "default 0.7f will be used with default test file");
+            return;
+        } else {
+            smoothD = Float.valueOf(args[0]);
+            fdata4 = tr.readFile(String.valueOf(args[1]));
+            System.out.println("Picked up smoothing: " + smoothD + 
+                    ", filename: " + String.valueOf(args[1]));
+        }
+        
         //TextFileReader tfr = new TextFileReader();
         fdata1 = irr.getResource("/data/spam_training");
         fdata2 = irr.getResource("/data/ham_training");
         fdata3 = irr.getResource("/data/vocab_100000.wl");
-        fdata4 = irr.getResource("/data/ham_spam_testing");
 
         // calculating features
         SimpleFeatureCalculator sfc = new SimpleFeatureCalculator(fdata3);
@@ -48,9 +63,6 @@ public class NaiveSpamDemo {
         RegexpDocSplitter rds = new RegexpDocSplitter(fdata4);
         Set<Document> testDocsObjs = rds.getDocObjects();
 
-//        for (Document d : testDocsObjs) {
-//            System.out.println(d.getEmailType() + "\n" + d.getBodyWords());
-//        }
         // testing
         TestClassifier tc = new TestClassifier(testDocsObjs,
                 c.getDefaultSpamProb(), c.getDefaultHamProb(), fdata3);
